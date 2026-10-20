@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: billing-api
+  namespace: production
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: billing-api
+  template:
+    metadata:
+      labels:
+        app: billing-api
+    spec:
+      hostNetwork: true
+      containers:
+        - name: billing-api
+          image: acme/billing-api:latest
+          securityContext:
+            privileged: true
+            runAsUser: 0
+          ports:
+            - containerPort: 8080
+          env:
+            - name: DB_PASSWORD
+              value: "prod-password-123"
