@@ -1,59 +1,54 @@
 # Themis
 
-Named for the Greek goddess of divine law and justice — the scales, a classic symbol of audit.
-An interpretation layer over LLM-generated CMMC / NIST SP 800-171 compliance findings on
-infrastructure-as-code: a terminal-style scan log, Wiz-style finding detail pages, and a live
-"paste a file, get findings" feature. Built as a standalone portfolio project.
+![Themis](.github/readme/thumbnail.png)
 
-This project is deliberately **not** trying to be a real compliance scanner. It has no AST parser,
-no policy-as-code rule engine, and no access to live cloud infrastructure — unlike
-[Checkov](https://checkov.io) or [tfsec](https://github.com/aquasecurity/tfsec). It's the
-UX/interpretation layer on top of whatever an LLM flags, held to the honesty discipline used
-throughout this portfolio: [Janus](https://github.com/joshrubio/Janus)'s RAG assistant and
-[Siren](https://github.com/joshrubio/Siren)'s classifier dashboard both say plainly where the
-model works and where it doesn't — this one says plainly that it isn't a certified assessment
-tool at all. See `/docs` in the app for the full "what this is / isn't" writeup.
+**LLM-generated compliance findings, read like a scanner.** Named for the Greek goddess of divine law and justice, whose scales are a classic symbol of audit. Themis is an interpretation layer over CMMC / NIST SP 800-171 findings on infrastructure-as-code: a terminal-style scan log, finding detail pages and a live "paste a file, get findings" feature.
 
-## What's real here
+Part of [Siegfried](https://github.com/joshrubio/Siegfried), a series of five satellite projects. Case study: [joshrubio.es/projects/themis](https://joshrubio.es/projects/themis)
 
-- **Example findings**: five deliberately-misconfigured infrastructure files (Terraform S3
-  bucket, Terraform security group, Terraform IAM policy, a Dockerfile, a Kubernetes deployment)
-  under `examples/`, scanned once by Groq (`openai/gpt-oss-20b`, free tier) with a system prompt
-  that includes real **NIST SP 800-171 Rev 2** control numbers and families — so findings cite
-  actual controls like `3.1.20` or `3.13.16` instead of invented ones.
-- **Scoring**: severity (critical/high/medium/low) is the model's judgment against an explicit
-  rubric given in the prompt, not a canned lookup table.
-- **Live scan**: `/scan` runs the same Groq pipeline live against whatever Terraform, Dockerfile,
-  or Kubernetes config you paste in — nothing is stored.
+This is deliberately **not** a real compliance scanner. It has no AST parser, no policy-as-code rule engine and no access to live cloud infrastructure, unlike [Checkov](https://checkov.io) or [tfsec](https://github.com/aquasecurity/tfsec). It is the UX layer on top of whatever an LLM flags, and its `/docs` page says plainly that it isn't a certified assessment tool.
 
-The 16 findings in the scan log were generated once by `scripts/scan.ts` and committed as static
-data (`lib/findings.json`), the same "precompute the default content, keep one real live feature"
-split used by Janus's RAG chat and Siren's classifier.
+![Scan log](.github/readme/screen-scanlog.webp)
 
-## Stack
+## How it works
 
-Next.js 16 (App Router, Cache Components) · TypeScript · Tailwind v4 · shadcn/ui (`@base-ui/react`)
-· Groq (`openai/gpt-oss-20b`).
+![Pipeline](.github/readme/pipeline.png)
+
+- **Examples**: five deliberately misconfigured files under `examples/`: a Terraform S3 bucket, security group and IAM policy, a Dockerfile and a Kubernetes deployment.
+- **One shared prompt** (`lib/scan.ts`): a system prompt with ten real **NIST SP 800-171 Rev 2** controls and their families, a severity rubric (critical, high, medium, low), an instruction not to invent issues, and a strict JSON schema. Sent to Groq (`openai/gpt-oss-20b`) at temperature 0.2.
+- **Offline**: `scripts/scan.ts` scanned the examples once and committed the 16 findings to `lib/findings.json`.
+- **Live**: `/scan` sends whatever Terraform, Dockerfile or Kubernetes config you paste through the same prompt via `/api/scan`. Nothing is stored.
+
+Because both paths use the same prompt, the live feature is held to exactly the same rubric as the precomputed data.
+
+## The app
+
+- **Scan log** (`/`): Checkov-style rows (`Check: <id>: "<title>"`, `FAILED for resource: <file>:<lines>`, the control), filterable by severity and by file.
+- **Finding detail** (`/findings/[id]`): a Wiz-style metadata grid (severity, control, family, language), the offending snippet, an explanation and a remediation.
+- **Scan a file** (`/scan`): the live feature.
+- **Docs** (`/docs`): what this is and isn't, and how severity is scored.
+
+![Finding detail](.github/readme/screen-finding.webp)
 
 ## Identity
 
-Benchmarked against real cloud-security tool UIs — [Wiz](https://wiz.io/platform)'s finding-card
-metadata grid, [Checkov](https://checkov.io)'s terminal scan-log format (`Check: CKV_AWS_130:
-"..."` / `FAILED for resource:` / file:line / snippet) — rather than reskinned from the other
-projects: a single monospace typeface (JetBrains Mono) used everywhere, zero corner radius, a
-violet accent reserved for functional signals, and severity colors (critical/high/medium/low) as
-domain-accurate data encoding, not brand decoration — the same exception class as Siren's magma
-spectrogram colormap.
+Benchmarked against Wiz's finding cards and Checkov's terminal scan-log format: a single monospace typeface (JetBrains Mono) everywhere, zero corner radius, a violet accent reserved for functional signals, and severity colors used as data, not decoration.
 
-## Running it locally
+## Running locally
 
 ```bash
 npm install
 npm run dev
 ```
 
-To regenerate `lib/findings.json` from scratch (requires a `GROQ_API_KEY` in `.env.local`):
+The live scan needs `GROQ_API_KEY` in `.env.local`; the scan log and finding pages work without it. The login page is a demo gate.
+
+To regenerate `lib/findings.json` from scratch:
 
 ```bash
 npx tsx scripts/scan.ts
 ```
+
+## Stack
+
+Next.js 16 (App Router, Cache Components) · TypeScript · Tailwind CSS v4 · shadcn/ui (`@base-ui/react`) · Groq (`openai/gpt-oss-20b`).
